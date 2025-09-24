@@ -4,12 +4,14 @@
 <meta charset="UTF-8">
 <title>Rialo Snake Game</title>
 <style>
-    body { margin:0; padding:0; background:#87CEEB; display:flex; justify-content:center; align-items:center; height:100vh; }
-    canvas { border:2px solid #000; background:#f0f8ff; }
+  body { margin:0; padding:0; background:#87CEEB; display:flex; justify-content:center; align-items:center; height:100vh; }
+  canvas { border:2px solid #000; background:#f0f8ff; }
+  button { font-size:20px; padding:10px 20px; margin-top:10px; display:none; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 </head>
 <body>
+<button id="retryButton">Retry</button>
 <script>
 let config = {
     type: Phaser.AUTO,
@@ -21,26 +23,27 @@ let config = {
 };
 
 let game = new Phaser.Game(config);
-let snake;
-let letters;
+
+let snake = [];
 let cursors;
 let direction = 'RIGHT';
-let score = 0;
-let scoreText;
 let moveTimer = 0;
 let moveDelay = 150;
+let score = 0;
+let scoreText;
+let letters;
+let letterSize = 32;
 
 function preload() {}
 
 function create() {
-    // Snake: initial segment
-    snake = [];
+    // Snake initial segment
     let startX = 400, startY = 300;
-    let segment = this.add.text(startX, startY, '🟩', { fontSize: '32px' });
+    let segment = this.add.rectangle(startX, startY, letterSize, letterSize, 0x00ff00);
     snake.push(segment);
 
     // Letters group
-    letters = this.physics.add.group();
+    letters = this.add.group();
     spawnLetter(this);
 
     // Input
@@ -48,9 +51,17 @@ function create() {
 
     // Score
     scoreText = this.add.text(16,16,'Score: 0',{ fontSize:'24px', fill:'#000' });
+
+    // Retry button
+    let retryBtn = document.getElementById('retryButton');
+    retryBtn.addEventListener('click', () => {
+        location.reload();
+    });
 }
 
 function update(time, delta) {
+    if (!snake[0]) return;
+
     // Change direction
     if (cursors.left.isDown && direction !== 'RIGHT') direction = 'LEFT';
     else if (cursors.right.isDown && direction !== 'LEFT') direction = 'RIGHT';
@@ -69,21 +80,21 @@ function moveSnake(scene) {
     let newX = head.x;
     let newY = head.y;
 
-    if (direction === 'LEFT') newX -= 32;
-    if (direction === 'RIGHT') newX += 32;
-    if (direction === 'UP') newY -= 32;
-    if (direction === 'DOWN') newY += 32;
+    if (direction === 'LEFT') newX -= letterSize;
+    if (direction === 'RIGHT') newX += letterSize;
+    if (direction === 'UP') newY -= letterSize;
+    if (direction === 'DOWN') newY += letterSize;
 
-    // Check wall collision
+    // Wall collision
     if (newX < 0 || newX >= 800 || newY < 0 || newY >= 600) {
-        gameOver(scene);
+        gameOver();
         return;
     }
 
-    // Check self collision
-    for (let i=0; i<snake.length; i++) {
-        if (snake[i].x === newX && snake[i].y === newY) {
-            gameOver(scene);
+    // Self collision
+    for (let i=0; i<snake.length; i++){
+        if(snake[i].x === newX && snake[i].y === newY){
+            gameOver();
             return;
         }
     }
@@ -94,9 +105,9 @@ function moveSnake(scene) {
     tail.y = newY;
     snake.unshift(tail);
 
-    // Check letter collision
-    letters.children.iterate(function(letter){
-        if(letter && Phaser.Math.Distance.Between(letter.x,letter.y,newX,newY)<16){
+    // Check collision with letters
+    letters.getChildren().forEach(letter=>{
+        if(Phaser.Math.Distance.Between(letter.x,letter.y,newX,newY)<letterSize/2){
             letter.destroy();
             growSnake(scene);
             score += 10;
@@ -108,23 +119,28 @@ function moveSnake(scene) {
 
 function growSnake(scene){
     let last = snake[snake.length-1];
-    let newSegment = scene.add.text(last.x, last.y, '🟩', { fontSize:'32px' });
+    let newSegment = scene.add.rectangle(last.x, last.y, letterSize, letterSize, 0x00ff00);
     snake.push(newSegment);
 }
 
 function spawnLetter(scene){
     let lettersArray = ['R','I','A','L','O'];
     let randomLetter = lettersArray[Phaser.Math.Between(0, lettersArray.length-1)];
-    let x = Phaser.Math.Between(0, 24) * 32;
-    let y = Phaser.Math.Between(0, 18) * 32;
-    let letter = scene.add.text(x,y,randomLetter, { fontSize:'32px', fill:'#ff0000' });
+    let x = Phaser.Math.Between(0, Math.floor(800/letterSize)-1) * letterSize + letterSize/2;
+    let y = Phaser.Math.Between(0, Math.floor(600/letterSize)-1) * letterSize + letterSize/2;
+    let letter = scene.add.text(x, y, randomLetter, { fontSize:'32px', fill:'#ff0000' }).setOrigin(0.5);
     letters.add(letter);
 }
 
-function gameOver(scene){
-    scene.add.text(300,280,'Game Over',{ fontSize:'48px', fill:'#000' });
-    scene.scene.pause();
+function gameOver(){
+    // Stop snake movement
+    snake[0] = null;
+    scoreText.setText('Game Over! Score: ' + score);
+    // Show retry button
+    let retryBtn = document.getElementById('retryButton');
+    retryBtn.style.display = 'block';
 }
 </script>
 </body>
 </html>
+
